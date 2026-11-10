@@ -9,6 +9,7 @@ Hardware y comparación con sweet: [HARDWARE.md](HARDWARE.md).
 | Volcado del teléfono (`../grus-dump`) | ✅ | boot.img v2 y DTB vivo |
 | Shim de diagnóstico m1 (refresco del panel) | ✅ | ABL deja el autorefresh activo: basta con escribir en el FB |
 | Shim m2: CPU, PSCI, SMP, GIC y reinicio a fastboot | ✅ | 8 núcleos, LSE/RCPC/16K por hardware, IRQ del timer y SGI, vuelta a fastboot |
+| Fork cjxyz/ios-grus y CI del kernel en verde | ✅ | Run 42855096694, macos-15-intel + Xcode 16.0, 20 min, `kernel.development.sweet` de 17 MB |
 | ADT + payload XNU para grus | ⏳ | |
 | XNU | ⏳ | |
 
@@ -53,3 +54,9 @@ Toolchain: clang/ld.lld/llvm-objcopy 21 (los mismos que en ios-vince). La cabece
   - SPMI ver `50000000`, 512 APID. PON en APID 7, owner 0. `SOFT_RB_SPARE` se lee bien (st 1, val 0).
   - **Reinicia a fastboot**: con `SOFT_RB_SPARE` = `2 << 1` por SPMI más PSCI SYSTEM_RESET, ABL entra en el bootloader (con solo IMEM arrancaba Android).
   - Conclusión: la CPU y el SMP de grus son compatibles con el kernel sin PAC de 16 K de sweet sin emulación. Siguiente hito: ADT y payload de XNU para grus.
+- **Repo**: fork `cjxyz/ios-grus` de `dipa-studio/ios-sweet` (otra red de forks que ios-vince, así que GitHub lo permite). Rama `grus-port` desde `45263be`; después de `fdad0de` (último build verde de upstream) solo cambian herramientas, no parches de XNU. Identidad y credential helper como en ios-vince. Actions habilitado a mano en el fork.
+- Workflow `xnu.yml`: `macos-14` está retirado; ahora el runner sale de la entrada `runner` (por defecto `macos-15-intel`).
+- **Primer CI en el fork, verde** (run 42855096694): macos-15-intel (macOS 15.7.9), Xcode 16.0, 20 min. `kernel.development.sweet` de 17 188 640 B, SHA256 `a8a98329…`, descargado en `out/kernel/` (ignorado por git).
+  - Se aplican los 81 parches de sweet. Solo se saltan los 4 de dxb (TrustCache, iobuffermemd_monterey, skywalk_sonoma, syntax_checker_sonoma), que son de otras versiones de macOS. En ios-vince, en cambio, se saltaban además 41 de sweet.
+  - Es el kernel de sweet sin cambios (`MACHINE_CONFIG=SWEET`): la base para los parches de grus.
+- Siguiente paso: parches de grus (RSC de RPMh `0x179e0000`, alto del panel 2340, PARange 40), ADT de grus (`tools/mkadt.py`) y portar el loader del shim de sweet a `grus/`.
