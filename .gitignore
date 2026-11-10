@@ -8,3 +8,8 @@ shim/out/
 xnu/out/
 xnu/out-*/
 __pycache__/
+
+# grus: local build outputs (shim images, stock boot.img parts)
+artifacts/
+build/
+*.img
