@@ -6,7 +6,9 @@
 sweet's builder is reused as is; only what differs on the Mi 9 SE changes
 (docs/grus/HARDWARE.md):
   - splash framebuffer 1080x2340 (sweet 1080x2400), same base and stride;
-  - CPU nodes: Kryo 360, Silver 1.7 GHz (cores 0-5) / Gold 2.3 GHz (6-7);
+  - CPU nodes: Silver 1.7 GHz (cores 0-5) / Gold 2.3 GHz (6-7). compatible keeps
+    qcom,kryo470 first: SweetCPU matches it (IONameMatch in KernelConfigTables.cpp),
+    and without SweetCPU the boot stops after AppleCLCD. qcom,kryo360 is informative;
   - root compatible gains xiaomi,grus and qcom,sdm712. xiaomi,sweet stays:
     SweetPlatformExpert matches on it.
 RAM window (0xb0000000 + 0x4d000000), GICv3, timer INTID 19 and UFS are the
@@ -45,7 +47,7 @@ def build():
     root = mkadt.build()
     for cpu in find(root, 'cpus').children:
         core = int(cpu.name[3:])
-        set_prop(cpu, 'compatible', mkadt.cstr('qcom,kryo360') + mkadt.cstr('ARM,v8'))
+        set_prop(cpu, 'compatible', b''.join(mkadt.cstr(c) for c in ('qcom,kryo470', 'qcom,kryo360', 'ARM,v8')))
         set_prop(cpu, 'clock-frequency', mkadt.u32(GOLD_HZ if core >= 6 else SILVER_HZ))
     set_prop(root, 'compatible', b''.join(mkadt.cstr(s) for s in (
         'D22AP', 'iPhone10,3', 'xiaomi,sweet', 'xiaomi,grus', 'qcom,sdm712', 'AppleARM')))
