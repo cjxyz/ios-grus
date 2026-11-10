@@ -10,7 +10,7 @@ Hardware y comparación con sweet: [HARDWARE.md](HARDWARE.md).
 | Shim de diagnóstico m1 (refresco del panel) | ✅ | ABL deja el autorefresh activo: basta con escribir en el FB |
 | Shim m2: CPU, PSCI, SMP, GIC y reinicio a fastboot | ✅ | 8 núcleos, LSE/RCPC/16K por hardware, IRQ del timer y SGI, vuelta a fastboot |
 | Fork cjxyz/ios-grus y CI del kernel en verde | ✅ | Run 42855096694, macos-15-intel + Xcode 16.0, 20 min, `kernel.development.sweet` de 17 MB |
-| ADT + payload XNU para grus | ⏳ | |
+| ADT + payload XNU para grus | 🧪 listo para probar | `artifacts/grus-xnu.img` (de `grus/tools/mkxnuboot.py`), kernel de sweet sin cambios |
 | XNU | ⏳ | |
 
 ## Build
@@ -60,3 +60,9 @@ Toolchain: clang/ld.lld/llvm-objcopy 21 (los mismos que en ios-vince). La cabece
   - Se aplican los 81 parches de sweet. Solo se saltan los 4 de dxb (TrustCache, iobuffermemd_monterey, skywalk_sonoma, syntax_checker_sonoma), que son de otras versiones de macOS. En ios-vince, en cambio, se saltaban además 41 de sweet.
   - Es el kernel de sweet sin cambios (`MACHINE_CONFIG=SWEET`): la base para los parches de grus.
 - Siguiente paso: parches de grus (RSC de RPMh `0x179e0000`, alto del panel 2340, PARange 40), ADT de grus (`tools/mkadt.py`) y portar el loader del shim de sweet a `grus/`.
+- **Primer arranque de XNU preparado** (`grus-xnu.img` `44a453f9…`):
+  - Kernel: el del run 42855096694 (`kernel.development.sweet`) **sin cambios**. Los drivers de sweet con hardware distinto se apagan por boot-arg: touch (GT9886 Normandy y RSC de RPMh en otra dirección), botones (vol+ en PM660L GPIO 7) y USB (relojes GCC sin revisar). La consola toma la geometría de `boot_args` y del ADT. Los 2400 fijos de 0061/0058 solo afectan a la interfaz de iOS. PARange: no hace falta parche; sweet ya arranca en A55 de 40 bits y el IPS no supera los 44 de los grandes.
+  - ADT (`grus/tools/mkadt_grus.py`, sobre `tools/mkadt.py`): `sweet-fbcon` 1080×2340, CPU `qcom,kryo360` a 1,7/2,3 GHz, compatible `D22AP|iPhone10,3|xiaomi,sweet|xiaomi,grus|qcom,sdm712|AppleARM` (`xiaomi,sweet` para SweetPlatformExpert). `/product` desde `research/ipsw-x/d22ap.adt` (fuera de git, copiado de ios-vince). Ventana de RAM de sweet, `0xb0000000` + `0x4cf00000`: todas las regiones fijas de `reserved-memory` del DTB vivo acaban en `0xb0000000` o antes (la última es `ramdump_fb_region`).
+  - Shim: el de sweet (`shim/`) compilado con clang (`grus/tools/shimbuild.py`, común con el de diagnóstico). Cambios: `FB_H` 2340, IMEM del motivo de reinicio `0x146bf65c`, `-fno-jump-tables` (clang convertía el `switch` del panic en una tabla ABS64) y `shim/clang_rt.c` con `strcmp` (clang no expande `__builtin_strcmp` en línea).
+  - Payload 16 596 224 B; kernel físico `0xb1004000`–`0xb24c4000`. Cmdline: `debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress wdt=-1 wdt_test=no_user_checkin sweettouch=0 sweetkeys=0 sweetusb=0` (sin `rd=`: lo esperado es que se pare en `Waiting on <dict>...`).
+  - Comprobado en el PC: el boot.img lleva el shim, el payload como ramdisk y el DTB stock.

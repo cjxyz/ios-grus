@@ -23,7 +23,16 @@ python3 grus/tools/bootimg.py selftest ../grus-dump/boot.img # el empaquetador r
 - La cabecera v2 (direcciones, page size, os_version) y la sección DTB se copian del `boot.img` del teléfono (`../grus-dump/boot.img`). ABL aplica el overlay de grus desde `dtbo`, igual que con Android.
 - El build falla si los objetos C tienen relocaciones `R_AARCH64_ABS64`: ABL ejecuta la imagen donde la carga (`0x80080000`), sin reubicarla.
 
-## 3. Volcados del teléfono (Windows, PowerShell, Magisk)
+## 3. Imagen de arranque de XNU (local, WSL)
+```
+gh run download <run-id> -R cjxyz/ios-grus -n xnu-kernel -D out/kernel   # kernel del CI
+python3 grus/tools/mkxnuboot.py                                          # -> artifacts/grus-xnu.img
+python3 grus/tools/mkadt_grus.py build/grus.adt --dump                   # inspeccionar el ADT
+```
+- Necesita `research/ipsw-x/d22ap.adt` (DeviceTree del iPhone X, artefacto de Apple, fuera de git) para el nodo `/product`. Sin él hay un aviso y no se genera ese nodo.
+- `--cmdline` cambia los boot-args; `--ramdisk` añade una imagen raíz para `rd=md0`.
+
+## 4. Volcados del teléfono (Windows, PowerShell, Magisk)
 Desde `C:\platform-tools`:
 ```powershell
 .\adb.exe shell "su -c 'dd if=/dev/block/by-name/boot of=/sdcard/boot.img'"
@@ -33,12 +42,13 @@ Desde `C:\platform-tools`:
 ```
 Se guardan en `xnuios/grus-dump/` (fuera de git).
 
-## 4. Arranque
+## 5. Arranque
 ```powershell
 .\adb.exe reboot bootloader
 $img = "\\wsl.localhost\Ubuntu\home\lau\proyectos\personal\xnuios\ios-grus\artifacts\grus-diag.img"
 .\fastboot.exe boot $img
 ```
+Para XNU, la misma orden con `artifacts\grus-xnu.img`.
 - Si al conectar el cable en fastboot aparece "press any key to shutdown", Windows no está enumerando el dispositivo. Arreglo (PowerShell como administrador):
   ```powershell
   $k = "HKLM\SYSTEM\CurrentControlSet\Control\usbflags\18D1D00D0100"
