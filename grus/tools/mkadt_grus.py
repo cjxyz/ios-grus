@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the Apple device tree for grus from sweet's tools/mkadt.py.
 
-  mkadt_grus.py OUT.adt [--dump]
+  mkadt_grus.py OUT.adt [--highmem] [--dump]
 
 sweet's builder is reused as is; only what differs on the Mi 9 SE changes
 (docs/grus/HARDWARE.md):
@@ -13,7 +13,8 @@ sweet's builder is reused as is; only what differs on the Mi 9 SE changes
     SweetPlatformExpert matches on it.
 RAM window (0xb0000000 + 0x4d000000), GICv3, timer INTID 19 and UFS are the
 same as sweet; every fixed reserved-memory region of grus ends at or below
-0xb0000000 (live DTB).
+0xb0000000 (live DTB). --highmem uses sweet's upper-bank window instead,
+0x1_00000000 + 0xfcc00000, which fits the grus bank of 0xfd6c0000.
 """
 import os
 import sys
@@ -42,9 +43,9 @@ def set_prop(node, key, value):
     raise SystemExit(f'ADT: {node.name} has no {key}')
 
 
-def build():
+def build(highmem=False):
     mkadt.FB_H = FB_H	# read by build() for /sweet-fbcon
-    root = mkadt.build()
+    root = mkadt.build(highmem=highmem)
     for cpu in find(root, 'cpus').children:
         core = int(cpu.name[3:])
         set_prop(cpu, 'compatible', b''.join(mkadt.cstr(c) for c in ('qcom,kryo470', 'qcom,kryo360', 'ARM,v8')))
@@ -56,7 +57,7 @@ def build():
 
 
 if __name__ == '__main__':
-    blob = adt.serialize(build())
+    blob = adt.serialize(build(highmem='--highmem' in sys.argv))
     open(sys.argv[1], 'wb').write(blob)
     if '--dump' in sys.argv:
         adt.dump(adt.parse(blob)[0])

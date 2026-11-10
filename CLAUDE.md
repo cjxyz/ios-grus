@@ -14,7 +14,7 @@ Reglas:
 - Cada cambio de parche o prueba en el teléfono termina con una entrada en `docs/grus/PROGRESS.md` y un commit.
 - XNU solo se compila en CI (`.github/workflows/xnu.yml`). Los parches viven en `xnu/patches/NNNN-*.patch`, numerados y aplicados en orden.
 - Arrancar siempre con `fastboot boot`, nunca flashear `boot`.
-- **`userdata` todavía tiene los datos de Android**: nunca arrancar con `ufsrw=1` y dejar siempre `sweetlog=0` (el log persistente de sweet escribe en los últimos 4 MiB de `userdata`) sin que el usuario lo autorice antes.
+- **`userdata` es para la raíz iOS** (el usuario lo autorizó el 2026-11-10; solo tenía datos de prueba de Android). `--root` arranca con `ufsrw=1` y con el log persistente de sweet activo (últimos 4 MiB de `userdata`, detrás del volumen HFS+). El resto de particiones no se tocan nunca, y cada flasheo se confirma con el usuario antes de ejecutarlo.
 - Nunca escribir `CTL_START` en el MDP: ABL deja el autorefresh activo y un kick cuelga el panel (ver PROGRESS).
 - Rama de trabajo: `grus-port` (parte de `45263be`; los parches de XNU son los del último build verde de upstream, `fdad0de`).
   CI manual: `gh workflow run xnu.yml -R cjxyz/ios-grus --ref grus-port -f runner=macos-15-intel`.

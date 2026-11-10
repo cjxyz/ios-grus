@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Build a grus fastboot image that boots XNU: sweet shim + payload (kernel + grus ADT).
 
-  grus/tools/mkxnuboot.py [--kernel out/kernel/kernel.development.sweet]
+  grus/tools/mkxnuboot.py [--kernel out/kernel/kernel.development.sweet] [--root] [--highmem]
                           [--cmdline "..."] [--ramdisk ROOT.img] [--out artifacts/grus-xnu.img]
+
+--root boots the iOS root on the userdata partition (ROOT_CMDLINE, upper-bank RAM).
 
 Steps: grus/tools/mkadt_grus.py -> build/grus.adt; tools/mkpayload.py packs the
 kernel (chained fixups resolved) and the ADT into the SWEETXNU payload; the sweet
@@ -30,22 +32,34 @@ SHIM_SOURCES = ('start.S', 'shim.c', 'console.c', 'mmu.c', 'fdt.c', 'loader.c', 
 # write its last 4 MiB (it already needs ufsrw=1, which is never set here).
 CMDLINE = ('debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress wdt=-1 '
            'wdt_test=no_user_checkin sweettouch=0 sweetkeys=0 sweetusb=0 sweetlog=0')
+# Root on userdata (2026-11-10: the user allowed replacing Android's test data there).
+# Userland boot-args are sweet's (README); the kernel console stays on top of the GUI for
+# now. sweetlog is on: with ufsrw=1 its ring lands in the last 4 MiB of userdata, past
+# the 16 GB HFS+ volume.
+ROOT_CMDLINE = ('debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress rd=ufsroot0 '
+                'ufsrw=1 rootrw=1 unentitled_ios_sim_launch=1 ignition_level=1 launchd_unsecure_cache=1 '
+                'wdt=-1 wdt_test=no_user_checkin sweettouch=0 sweetkeys=0 sweetusb=0 sweetfb_hz=30')
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--kernel', default=os.path.join(REPO, 'out', 'kernel', 'kernel.development.sweet'))
-    ap.add_argument('--cmdline', default=CMDLINE)
+    ap.add_argument('--root', action='store_true', help='root on userdata: ROOT_CMDLINE + --highmem')
+    ap.add_argument('--highmem', action='store_true', help='XNU RAM in the upper bank (0x1_00000000)')
+    ap.add_argument('--cmdline')
     ap.add_argument('--ramdisk', help='root image for md0 (boot with rd=md0)')
     ap.add_argument('--stock', default=os.path.join(REPO, '..', 'grus-dump', 'boot.img'))
     ap.add_argument('--out', default=os.path.join(REPO, 'artifacts', 'grus-xnu.img'))
     a = ap.parse_args()
+    if a.cmdline is None:
+        a.cmdline = ROOT_CMDLINE if a.root else CMDLINE
+    highmem = a.highmem or a.root
     build = os.path.join(REPO, 'build')
     os.makedirs(build, exist_ok=True)
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
 
     adt_path = os.path.join(build, 'grus.adt')
-    open(adt_path, 'wb').write(adt.serialize(mkadt_grus.build()))
+    open(adt_path, 'wb').write(adt.serialize(mkadt_grus.build(highmem=highmem)))
     payload, info = mkpayload.build(a.kernel, adt_path, a.cmdline, a.ramdisk)
     open(os.path.join(build, 'grus.payload'), 'wb').write(payload)
     shim = shimbuild.build_image(os.path.join(REPO, 'shim'), SHIM_SOURCES,
@@ -56,6 +70,7 @@ def main():
     print(f'payload {len(payload)} B  {info}')
     print(f'shim    {len(shim)} B')
     print(f'cmdline {a.cmdline}')
+    print(f'ram     {"upper bank" if highmem else "low bank"}')
     print(f'boot    {a.out} {len(img)} B sha256 {hashlib.sha256(img).hexdigest()}')
 
 
