@@ -26,8 +26,10 @@ SHIM_SOURCES = ('start.S', 'shim.c', 'console.c', 'mmu.c', 'fdt.c', 'loader.c', 
 # First XNU boot: one core, no root (the kernel stops at "Waiting on <dict>..."), and the
 # sweet drivers whose hardware differs on grus switched off (touch: GT9886 Normandy and
 # RPMh RSC; keys: PM660L GPIO 7; USB: GCC clocks not checked yet).
+# sweetlog=0: Android's data is still on userdata, so never let the persistent log ring
+# write its last 4 MiB (it already needs ufsrw=1, which is never set here).
 CMDLINE = ('debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress wdt=-1 '
-           'wdt_test=no_user_checkin sweettouch=0 sweetkeys=0 sweetusb=0')
+           'wdt_test=no_user_checkin sweettouch=0 sweetkeys=0 sweetusb=0 sweetlog=0')
 
 
 def main():
