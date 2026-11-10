@@ -10,7 +10,9 @@ Hardware y comparación con sweet: [HARDWARE.md](HARDWARE.md).
 | Shim de diagnóstico m1 (refresco del panel) | ✅ | ABL deja el autorefresh activo: basta con escribir en el FB |
 | Shim m2: CPU, PSCI, SMP, GIC y reinicio a fastboot | ✅ | 8 núcleos, LSE/RCPC/16K por hardware, IRQ del timer y SGI, vuelta a fastboot |
 | Fork cjxyz/ios-grus y CI del kernel en verde | ✅ | Run 42855096694, macos-15-intel + Xcode 16.0, 20 min, `kernel.development.sweet` de 17 MB |
-| ADT + payload XNU para grus | 🧪 listo para probar | `artifacts/grus-xnu.img` (de `grus/tools/mkxnuboot.py`), kernel de sweet sin cambios |
+| XNU 1 núcleo hasta esperar la raíz | ✅ | `Waiting on ... Apple_HFS` con el kernel de sweet sin cambios (2026-11-10) |
+| Raíz iOS (UFS `userdata` o md0) | ⏳ | Decisión del usuario: `userdata` tiene los datos de Android |
+| SMP 8 núcleos en XNU (`cpus=8`) | ⏳ | |
 | XNU | ⏳ | |
 
 ## Build
@@ -84,3 +86,8 @@ Toolchain: clang/ld.lld/llvm-objcopy 21 (los mismos que en ios-vince). La cabece
   - SweetPlatformExpert registra los nubs `cpu000`…`cpu70700`, arm-io, `sweet-fbcon`, buttons, pram, product, `sweet-ufs@1D84000` y wdt. Arrancan AppleKeyStore, IOWatchdog, IOCoreSurfaceRoot, SweetHIDButtons, SweetHIDTouch, SweetBattery y AppleCLCD, y ahí se acaba: **`SweetCPU::start` no arranca en ningún nub de CPU**.
   - `SweetCPU` se empareja con `IONameMatch = 'qcom,kryo470'` (`iokit/KernelConfigTables.cpp`). `mkadt_grus.py` había cambiado el compatible de las CPU a `qcom,kryo360`, así que no había driver de CPU y el arranque se quedaba esperando a las CPUs.
   - Arreglo: compatible `qcom,kryo470|qcom,kryo360|ARM,v8`. Las únicas cadenas que el kernel empareja con el ADT son `xiaomi,sweet` (SweetPlatformExpert), `qcom,kryo470` (SweetCPU) y `sweet,display` (AppleCLCD); las tres están. Imágenes nuevas: `grus-xnu.img` `5cd4b57c…` y `grus-xnu-io.img` `6e32f80c…`.
+- **Quinta prueba: XNU llega a esperar la raíz** (`grus-xnu.img` `5cd4b57c…`), con foto:
+  - Tras `SWEET FB`: `SWEET CPU: requested=1 selected=1 (limit=8)`, `cpu_start() cpu: 0`, `cpu=0 entered initCPU mpidr=0x0 EL1 IRQs=1`, `cpu=0 mpidr=0x0 came alive; SGI1 OK`, `1/1 CPUs initialized, SGI1 verified`.
+  - BSD: copyright, MAC framework, SWEET AMFI y Sandbox permisivos, `SWEET HFS: hfs-627.100.6 registered`, `mbinit: done [64 MB total pool size]`, DLIL SUM16 y todos los self-tests de Skywalk PASSED, `bsd_autoconf`, `lo0`, `gif0` y `stf0`.
+  - Final: **`Waiting on <dict ID="0"><key>IOProviderClass</key><string ID="1">IOMedia</string><key>Content</key><string ID="2">Apple_HFS</string></dict>`** y `Failed to write boot-picker-bringup-reason to NVRAM` (no hay NVRAM; inofensivo).
+  - Conclusión: con el kernel de sweet sin cambios, grus arranca XNU entero con 1 núcleo. Siguiente: raíz iOS y `cpus=8`.
